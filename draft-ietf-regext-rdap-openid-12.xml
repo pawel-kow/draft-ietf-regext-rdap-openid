@@ -121,7 +121,7 @@
           <t>At a high level, RDAP authentication of a browser-like client using OpenID Connect requires completion of the following steps:</t>
           
           <t><list style="numbers">
-            <t>An RDAP client sends an RDAP "help" query to an RDAP server to determine the type of OpenID Authorization Server that's used by the RDAP server. This information is returned in the rdapConformance section of the response. A value of "rdap_openidc_local_level_0" indicates that the server uses a local Authorization Server. A value of "rdap_openidc_remote_level_0" indicates that the server uses a remote Authorization Server.</t>
+            <t>An RDAP client sends an RDAP "help" query to an RDAP server to determine the type of OpenID Authorization Server that's used by the RDAP server and its capabilities. This information is returned in the rdapConformance section of the response. A value of "rdap_openidc_local_level_0" indicates that the server uses a local Authorization Server. A value of "rdap_openidc_remote_level_0" indicates that the server uses a remote Authorization Server. In case of remote Authorization Server is supported the RDAP client SHOULD evaluate an additional information provided in <xref target="openidcRemoteConfiguration" /> in order to discover the capabilties of the RDAP server and optionally obtain a list of supported OPs.</t>
             <t>An RDAP client (acting as an OpenID End-User) sends an RDAP "login" request to an RDAP server as described in <xref target="client-login"/>.</t>
             <t>The RDAP server (acting as an OpenID Relying Party (RP)) prepares an Authentication Request containing the desired request parameters.</t>
             <t>The RDAP server sends the RDAP client and Authentication Request to an Authorization Server operated by an OpenID Provider (OP) using an HTTP redirect.</t>
@@ -141,7 +141,10 @@
           <t>End-Users MUST possess an identifier (an OpenID) issued by an OP to use OpenID Connect with RDAP. An OP SHOULD include support for the claims described in <xref target="rdap-claims"/> to provide additional information needed for RDAP End-User authorization. OpenID Connect requires RPs to register with OPs to use OpenID Connect services for an End-User. The registration process is often completed using out-of-band methods, but it is also possible to use the automated method described by the "OpenID Connect Dynamic Client Registration" protocol <xref target="OIDCR"/>. The parties involved can use any method that is mutually acceptable.</t>
       
           <section anchor="discovery" title="Provider Discovery">
-            <t>An RDAP server/RP needs to be able to map an End-User's identifier to an OP. This can be accomplished using the OPTIONAL "OpenID Connect Discovery" protocol <xref target="OIDCD"/>, but that protocol is not widely implemented. Out-of-band methods are also possible and can be more dependable. For example, an RP can support a limited number of OPs and maintain internal associations of those identifiers with the OPs that issued them. An RP can also ask an End-User to identify the OP that issued their identifier as part of an RDAP query workflow. In this case, the RP will need to maintain state for the association between the user's identifier and the OP in order to process later queries that rely on passing the access token and user identifier as authorization parameters. An RP MAY use any provider discovery approach that is suitable for its operating environment.</t>
+            <t>An RDAP server/RP needs to be able to map an End-User's identifier to an OP. This can be accomplished using the OPTIONAL "OpenID Connect Discovery" protocol <xref target="OIDCD"/>, but that protocol is not widely implemented. Out-of-band methods are also possible and can be more dependable. For example, an RP can support a limited number of OPs and maintain internal associations of those identifiers with the OPs that issued them.</t>
+            <t>Alternatively, if mapping of End-User's identifier is not possible, or not supported by the RDAP server, the RDAP server SHOULD support an explicit specification of a remote OP by the RDAP client. An RDAP server SHOULD provide information about its capabilities and the supported OPs in the /help response in the <xref target="openidcRemoteConfiguration"/> data structure.</t>
+            <t>An RP can also ask an End-User to identify the OP that issued their identifier as part of an RDAP query workflow. In this case, the RP will need to maintain state for the association between the user's identifier and the OP in order to process later queries that rely on passing the access token and user identifier as authorization parameters. An RP MAY use any provider discovery approach that is suitable for its operating environment.</t>
+            <t>An RDAP server MUST support at least one of the methods of OP discovery.</t>
           </section>
       
           <section anchor="auth-request" title="Authentication Request">
@@ -149,7 +152,7 @@
             
             <t>The benefits of using the Authorization Code Flow for authenticating a human user are described in Section 3.1 of the OpenID Connect Core protocol. The Implicit Flow is more commonly used by clients implemented in a web browser using a scripting language; it is described in Section 3.2 of the OpenID Connect Core protocol. The Hybrid Flow (described in Section 3.3 of the OpenID Connect Core protocol) combines elements of the Authorization and Implicit Flows by returning some tokens from the Authorization Endpoint and others from the Token Endpoint.</t>
             
-            <t>An Authentication Request can contain several parameters. REQUIRED parameters are specified in Section 3.1.2.1 of the OpenID Connect Core protocol <xref target="OIDCC"/>. Apart from these parameters, it is RECOMMENDED that the RP include the optional "login_hint" parameter in the request, with the value being that of the "id" query parameter of the End-User's RDAP "login" request. Passing the "login_hint" parameter allows a client to pre-fill login form information, so logging in can be more convenient for users. Other parameters MAY be included.</t>
+            <t>An Authentication Request can contain several parameters. REQUIRED parameters are specified in Section 3.1.2.1 of the OpenID Connect Core protocol <xref target="OIDCC"/>. Apart from these parameters, it is RECOMMENDED that the RP include the optional "login_hint" parameter in the request, with the value being that of the "id" query parameter of the End-User's RDAP "login" request, if provided. Passing the "login_hint" parameter allows a client to pre-fill login form information, so logging in can be more convenient for users. Other parameters MAY be included.</t>
             
             <t>The OP receives the Authentication Request and attempts to validate it as described in Section 3.1.2.2 of the OpenID Connect Core protocol <xref target="OIDCC"/>. If the request is valid, the OP attempts to authenticate the End-User as described in Section 3.1.2.3 of the OpenID Connect Core protocol <xref target="OIDCC"/>. The OP returns an error response if the request is not valid or if any error is encountered.</t>
           </section>
@@ -220,7 +223,7 @@
       </t>
 	  
 	  <section anchor="data-structures" title="Data Structures">
-	    <t>This specification describes two new data structures that are used to return information to a client: a "session" data structure that contains information that describes an established session, and a "deviceInfo" data structure that contains information that describes an active attempt to establish a session on a UI-constrained device.</t>
+	    <t>This specification describes three new data structures that are used to return information to a client: a "session" data structure that contains information that describes an established session, a "deviceInfo" data structure that contains information that describes an active attempt to establish a session on a UI-constrained device and a "openidcRemoteConfiguration" data structure which provides a list of OPs supported by the RDAP server.</t>
 		
 	    <section anchor="session" title="Session">
 	      <t>The "session" data structure is an object that contains two sub-objects:</t>
@@ -281,82 +284,129 @@
             </artwork>
           </figure>
 	    </section>
+	    <section anchor="openidcRemoteConfiguration" title="OpenID Connect Remote Configuration">
+        <t>The "openidcRemoteConfiguration" data structure is an object with the following members:</t>
+        <t><list style="numbers">
+          <t>"endUserIdentifierDiscoverySupported": (OPTIONAL) a boolean value indicating RDAP server support for discovery of End-User identifier. Default: true.</t>
+          <t>"issuerIdentifierSupported": (OPTIONAL) a boolean value indicating RDAP server supports explicit specification of Issuer Identifier. Default: false.</t>
+  	      <t>"openidcRemoteProviders": (OPTIONAL) a list of objects with the following members. This data is RECOMMENDED if issuerIdentifierSupported equals true:</t>
+		  
+          <t><list style="letters">
+            <t>"iss": (MANDATORY) an string value equal to Issuer Identifier of the OP as per OpenID Connect Core specification <xref target="OIDCC"/></t>
+            <t>"name": (MANDATORY) A human-friendly name of the OP.</t>
+          </list></t>
+        </list></t>
+		  
+          <figure anchor="example_openidcRemoteConfiguration_structure">
+            <preamble>An example of a "openidcRemoteConfiguration" data structure:</preamble>
+            <artwork xml:space="preserve">
+"openidcRemoteConfiguration": {
+  "endUserIdentifierDiscoverySupported": true,
+  "issuerIdentifierSupported": true,
+  "openidcRemoteProviders":
+    [
+      {
+        "iss": "https://idp.example.com",
+        "name": "Example IDP" 
+      },
+      {
+        "iss": "https://accounts.acme.com",
+        "name": "Login with ACME"
+      }
+    ]
+}               
+            </artwork>
+          </figure>
+	    </section>
 	  </section>
       
       <section anchor="client-login" title="Client Login">
-        <t>Client authentication is requested by sending a "session/login" request to an RDAP server. If the RDAP server supports only remote Authorization Servers, the "session/login" request MUST include an End-User identifier that's delivered using one of two methods: by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>, or by including an HTTP authorization header for the Basic authentication scheme as described in RFC 7617 <xref target="RFC7617"/>. Clients can use either of these methods to deliver the End-User identifier to a server that supports remote Authorization Servers. Servers that support remote Authorization Servers MUST accept both methods. If the RDAP server supports a local Authorization Server, the End-User identifier MAY be omitted.</t>
+        <t>Client authentication is requested by sending a "session/login" request to an RDAP server. If the RDAP server supports only remote Authorization Servers, the "session/login" request MUST include at least one of: an End-User identifier or the Issuer Identifier of the OP.
+        </t>
+        <section anchor="end-user-identifier" title="End-User identifier">
+          <t>The End-User identifier is delivered using one of two methods: by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>, or by including an HTTP authorization header for the Basic authentication scheme as described in RFC 7617 <xref target="RFC7617"/>. Clients can use either of these methods to deliver the End-User identifier to a server that supports remote Authorization Servers and End-User identifier discovery. Servers that support remote Authorization Servers and End-User identifier discovery MUST accept both methods. If the RDAP server supports a local Authorization Server or End-User identifier discovery is not supported, the End-User identifier MAY be omitted.</t>
 
-        <t>The query used to request client authentication is represented as an OPTIONAL "key=value" pair using a key value of "id" and a value component that contains the client identifier issued by an OP. An example for client identifier "user.idp.example":</t>
-      
-        <t>https://example.com/rdap/session/login?id=user.idp.example</t>
-
-        <t>The authorization header for the Basic authentication scheme contains a Base64-encoded representation of the client identifier issued by an OP. No password is provided. An example for client identifier "user.idp.example":</t>
-
-        <t>https://example.com/rdap/session/login</t>
-        <t>Authorization: Basic dXNlci5pZHAuZXhhbXBsZQ==</t>
-
-        <t>An example for use with a local Authorization Server:</t>
-      
-        <t>https://example.com/rdap/session/login</t>
+          <t>The query used to request client authentication is represented as an OPTIONAL "key=value" pair using a key value of "id" and a value component that contains the client identifier issued by an OP. An example for client identifier "user.idp.example":</t>
         
-        <t>The response to this request MUST use the response structures specified in RFC 9083 <xref target="RFC9083"/>. In addition, the response MUST include an indication of the requested operation's success or failure in the "notices" data structure (including the client identifier), and, if successful, a "session" data structure.</t>
+          <t>https://example.com/rdap/session/login?id=user.idp.example</t>
+
+          <t>The authorization header for the Basic authentication scheme contains a Base64-encoded representation of the client identifier issued by an OP. No password is provided. An example for client identifier "user.idp.example":</t>
+
+          <t>https://example.com/rdap/session/login</t>
+          <t>Authorization: Basic dXNlci5pZHAuZXhhbXBsZQ==</t>
+
+          <t>An example for use with a local Authorization Server:</t>
         
-        <figure anchor="example_login_response">
-          <preamble>An example of a successful "session/login" response:</preamble>
-          <artwork xml:space="preserve">
-  {
-    "rdapConformance": [
-      "rdap_openidc_remote_level_0"
-    ],
-    "lang": "en-US",
-    "notices": {
-      "title": "Login Result",
-      "description": [
-        "Login succeeded",
-        "user.idp.example"
+          <t>https://example.com/rdap/session/login</t>
+        </section>
+        <section anchor="issuer-identifier" title="Issuer Identifier">
+          <t>The OP's Issuer Identifier is delivered by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>. If the RDAP server supports a local Authorization Server, the Issuer Identifier MAY be omitted.</t>
+
+          <t>The query used to request client authentication is represented as an OPTIONAL "key=value" pair using a key value of "remote_iss" and a value component that contains the Issuer Identifier an OP.</t>
+          <t>An RDAP server MAY accept Issuer Identifiers not specified in <xref target="openidcRemoteConfiguration"/> and also MAY decide to accept a specific Issuer Identifiers only from a specific clients.</t>
+            
+          <t>An example for Issuer Identifier "https://idp.example.com":</t>
+          <t>https://example.com/rdap/session/login?remote_iss=https%3A%2F%2Fidp.example.com</t>
+        </section>
+        <section anchor="login-response" title="Login Response">
+          <t>The response to the login request MUST use the response structures specified in RFC 9083 <xref target="RFC9083"/>. In addition, the response MUST include an indication of the requested operation's success or failure in the "notices" data structure (including the client identifier), and, if successful, a "session" data structure.</t>
+          
+          <figure anchor="example_login_response">
+            <preamble>An example of a successful "session/login" response:</preamble>
+            <artwork xml:space="preserve">
+    {
+      "rdapConformance": [
+        "rdap_openidc_remote_level_0"
       ],
-    },
-    "session": {
-      "userClaims": {
-        "sub": "103892603076825016132",
-        "name": "User Person",
-        "given_name": "User",
-        "family_name": "Person",
-        "picture": "https://lh3.example.com/a-/AOh14=s96-c",
-        "email": "user@example.com",
-        "email_verified": true,
-        "locale": "en",
-        "purpose": "domainNameControl",
-        "dnt": false
+      "lang": "en-US",
+      "notices": {
+        "title": "Login Result",
+        "description": [
+          "Login succeeded",
+          "user.idp.example"
+        ],
       },
-      "sessionInfo": {
-        "tokenExpiration": 3599,
-        "tokenRefresh": true
+      "session": {
+        "userClaims": {
+          "sub": "103892603076825016132",
+          "name": "User Person",
+          "given_name": "User",
+          "family_name": "Person",
+          "picture": "https://lh3.example.com/a-/AOh14=s96-c",
+          "email": "user@example.com",
+          "email_verified": true,
+          "locale": "en",
+          "purpose": "domainNameControl",
+          "dnt": false
+        },
+        "sessionInfo": {
+          "tokenExpiration": 3599,
+          "tokenRefresh": true
+        }
       }
-    }
-  }               
-          </artwork>
-        </figure>
-        
-        <figure anchor="example_failed_login_response">
-          <preamble>An example of a failed "session/login" response:</preamble>
-          <artwork xml:space="preserve">
-  {
-    "rdapConformance": [
-      "rdap_openidc_remote_level_0"
-    ],
-    "lang": "en-US",
-    "notices": {
-      "title": "Login Result",
-      "description": [
-        "Login failed",
-        "user.idp.example"
-        ]
-    }
-  }                
-          </artwork>
-        </figure>
-
+    }               
+            </artwork>
+          </figure>
+          
+          <figure anchor="example_failed_login_response">
+            <preamble>An example of a failed "session/login" response:</preamble>
+            <artwork xml:space="preserve">
+    {
+      "rdapConformance": [
+        "rdap_openidc_remote_level_0"
+      ],
+      "lang": "en-US",
+      "notices": {
+        "title": "Login Result",
+        "description": [
+          "Login failed",
+          "user.idp.example"
+          ]
+      }
+    }                
+            </artwork>
+          </figure>
+        </section>
         <section anchor="ui-constrained" title="Clients with Limited User Interfaces">
           <t>The "OAuth 2.0 Device Authorization Grant" <xref target="RFC8628"/> provides an OPTIONAL method to request user authorization from devices that have an Internet connection, but lack a suitable browser for a more traditional OAuth flow. This method requires an End-User to use a second device (such as a smart telephone) that has access to a web browser for entry of a code sequence that is presented on the UI-constrained device.</t>
       
@@ -876,6 +926,7 @@
           <t hangText="10:">Updated <xref target="discovery"/>. Replaced token processing queries with "login", "session", and "logout" queries.</t>
           <t hangText="11:">Replaced queries with "session/*" queries. Added description of "rdap" OAuth scope. Added implementation status information.</t>
           <t hangText="12:">Updated data structure descriptions. Updated <xref target="IANA"/>. Minor formatting changes due to a move to xml2rfc-v3 markup.</t>
+          <t hangText="XX:">Added support for OP discovery via OP's Issuer Identifier.</t>
         </list>
       </t>
     </section>
