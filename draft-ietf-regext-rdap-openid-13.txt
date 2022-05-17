@@ -4,8 +4,8 @@
 
 REGEXT Working Group                                       S. Hollenbeck
 Internet-Draft                                             Verisign Labs
-Intended status: Standards Track                           28 April 2022
-Expires: 30 October 2022
+Intended status: Standards Track                             16 May 2022
+Expires: 17 November 2022
 
 
    Federated Authentication for the Registration Data Access Protocol
@@ -42,7 +42,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 30 October 2022.
+   This Internet-Draft will expire on 17 November 2022.
 
 Copyright Notice
 
@@ -76,24 +76,27 @@ Table of Contents
          3.1.3.5.  Token Processing
          3.1.3.6.  Delivery of User Information
        3.1.4.  Specialized Claims for RDAP
-         3.1.4.1.  Stated Purpose
+         3.1.4.1.  Stated Purposes
          3.1.4.2.  Do Not Track
    4.  Protocol Parameters
      4.1.  Data Structures
        4.1.1.  Session
        4.1.2.  Device Info
-       4.1.3.  OpenID Connect Remote Configuration
+       4.1.3.  OpenID Connect Configuration
      4.2.  Client Login
-       4.2.1.  End-User identifier
-       4.2.2.  Issuer Identifier
+       4.2.1.  End-User Identifier
+       4.2.2.  OP Issuer Identifier
        4.2.3.  Login Response
        4.2.4.  Clients with Limited User Interfaces
          4.2.4.1.  UI-constrained Client Login
          4.2.4.2.  UI-constrained Client Login Polling
-     4.3.  Session Status
-     4.4.  Session Refresh
-     4.5.  Client Logout
-     4.6.  Parameter Processing
+     4.3.  RDAP Query Parameters
+       4.3.1.  RDAP Query Purpose
+       4.3.2.  RDAP Do Not Track
+     4.4.  Session Status
+     4.5.  Session Refresh
+     4.6.  Client Logout
+     4.7.  Parameter Processing
    5.  Token Exchange
    6.  RDAP Query Processing
    7.  RDAP Conformance
@@ -241,14 +244,12 @@ Table of Contents
         determine the type and capabilities of the OpenID Authorization
         Servers that are used by the RDAP server.  This information is
         returned in the rdapConformance section of the response.  A
-        value of "rdap_openidc_local_level_0" indicates that the server
-        uses a local Authorization Server.  A value of
-        "rdap_openidc_remote_level_0" indicates that the server uses a
-        remote Authorization Server.  If one or more remote
-        Authorization Servers are supported, the RDAP client SHOULD
-        evaluate the additional information described in Section 4.1.3
-        in order to discover the capabilties of the RDAP server and
-        optionally obtain the set of supported OPs.
+        value of "roidc1" indicates support for the etension described
+        in this specification.  TBD: ADD TEXT TO DESCRIBE CONFIG INFO.
+        If one or more remote Authorization Servers are supported, the
+        RDAP client SHOULD evaluate the additional information described
+        in Section 4.1.3 in order to discover the capabilties of the
+        RDAP server and optionally obtain the set of supported OPs.
    2.   An RDAP client (acting as an OpenID End-User) sends an RDAP
         "login" request to an RDAP server as described in Section 4.2.
    3.   The RDAP server (acting as an OpenID Relying Party (RP))
@@ -303,8 +304,7 @@ Table of Contents
    the form of a query parameter as described in Section 4.2.2.  An RDAP
    server SHOULD provide information about its capabilities and
    supported OPs in the "help" query response in the
-   "openidcRemoteConfiguration" data structure described in
-   Section 4.1.3.
+   "openidcConfiguration" data structure described in Section 4.1.3.
 
    An RP can also ask an End-User to identify the OP that issued their
    identifier as part of an RDAP query workflow.  In this case, the RP
@@ -396,7 +396,7 @@ Table of Contents
    that are specific to RDAP are associated with an OAuth scope request
    parameter value (see Section 3.3 of RFC 6749 ([RFC6749])) of "rdap".
 
-3.1.4.1.  Stated Purpose
+3.1.4.1.  Stated Purposes
 
    There are communities of RDAP users and operators who wish to make
    and validate claims about a user's "need to know" when it comes to
@@ -404,24 +404,25 @@ Table of Contents
    agent or a trademark attorney may wish to be able to assert that they
    have a legal right to access a protected resource, and a server
    operator will need to be able to receive and validate that claim.
-   These needs can be met by defining and using an additional "purpose"
-   claim.
+   These needs can be met by defining and using an additional
+   "rdap_allowed_purposes" claim.
 
-   The "purpose" claim identifies the purpose for which access to a
-   protected resource is being requested.  Use of the "purpose" claim is
-   OPTIONAL; processing of this claim is subject to server acceptance of
-   the purpose and successful authentication of the End-User.
-   Unrecognized purpose values MUST be ignored and the associated query
-   MUST be processed as if the unrecognized purpose value was not
-   present at all.
+   The "rdap_allowed_purposes" claim identifies the purposes for which
+   access to a protected resource can be requested by an End-User.  Use
+   of the "rdap_allowed_purposes" claim is OPTIONAL; processing of this
+   claim is subject to server acceptance of the purposes, the trust
+   level assigned to this claim by the server, and successful
+   authentication of the End-User.  Unrecognized purpose values MUST be
+   ignored and the associated query MUST be processed as if the
+   unrecognized purpose value was not present at all.
 
-   The "purpose" value is a case-sensitive string containing a
-   StringOrURI value as specified in Section 2 of the JSON Web Token
-   (JWT) specification ([RFC7519]).  An example:
+   The "rdap_allowed_purposes" claim is represented as an array of case-
+   sensitive StringOrURI values as specified in Section 2 of the JSON
+   Web Token (JWT) specification ([RFC7519]).  An example:
 
-   {"purpose" : "domainNameControl"}
+   "rdap_allowed_purposes": ["domainNameControl","dnsTransparency"]
 
-   Purpose values are themselves registered with IANA.  Each entry in
+   Individual purpose values are registered with IANA.  Each entry in
    the registry contains the following fields:
 
    Value: the purpose string value being registered.  Value strings can
@@ -453,20 +454,20 @@ Table of Contents
    will need to be able to receive and validate that claim.  These needs
    can be met by defining and using an additional "do not track" claim.
 
-   The "do not track" ("dnt") claim can be used to identify an End-User
-   that is authorized to perform queries without the End-User's
-   association with those queries being logged, tracked, or recorded by
-   the server.  Client use of the "dnt" claim is OPTIONAL.  Server
-   operators MUST NOT log, track, or record any association of the query
-   and the End-User's identity if the End-User is successfully
-   identified and authorized, the "dnt" claim is present, the value of
-   the claim is "true", and accepting the claim complies with local
-   regulations regarding logging and tracking.
+   The "do not track" ("rdap_dnt_allowed") claim can be used to identify
+   an End-User that is authorized to perform queries without the End-
+   User's association with those queries being logged, tracked, or
+   recorded by the server.  Client use of the "rdap_dnt_allowed" claim
+   is OPTIONAL.  Server operators MUST NOT log, track, or record any
+   association of the query and the End-User's identity if the End-User
+   is successfully identified and authorized, the "rdap_dnt_allowed"
+   claim is present, the value of the claim is "true", and accepting the
+   claim complies with local regulations regarding logging and tracking.
 
-   The "dnt" value is represented as a JSON boolean literal.  An
-   example:
+   The "rdap_dnt_allowed" value is represented as a JSON boolean
+   literal.  An example:
 
-   {"dnt" : true}
+   rdap_dnt_allowed: true
 
    No special query tracking processing is required if this claim is not
    present or if the value of the claim is "false".  Use of this claim
@@ -480,27 +481,32 @@ Table of Contents
    This specification adds the following protocol parameters to RDAP:
 
    1.  Data structures to return information that describes an
-       established session and the information needed to establish a
-       session for a UI-constrained device.
+       established session, the information needed to establish a
+       session for a UI-constrained device, and the RDAP server's OpenID
+       Connect extension configuration.
    2.  A query parameter to request authentication for a specific End-
        User identity.
-   3.  Path segments to start, stop, refresh, and determine the status
+   3.  A query parameter to identify the purpose of the query.
+   4.  A query parameter to request that the server not log or otherwise
+       record information about the identity associated with a query.
+   5.  Path segments to start, stop, refresh, and determine the status
        of an authenticated session for a specific End-User identity.
 
 4.1.  Data Structures
 
    This specification describes three new data structures that are used
-   to return information to a client: a "session" data structure that
-   contains information that describes an established session, a
-   "deviceInfo" data structure that contains information that describes
-   an active attempt to establish a session on a UI-constrained device,
-   and a "openidcRemoteConfiguration" data structure that contains the
-   set of remote OPs supported by the RDAP server.
+   to return information to a client: a "roidc1_session" data structure
+   that contains information that describes an established session, a
+   "roidc1_deviceInfo" data structure that contains information that
+   describes an active attempt to establish a session on a UI-
+   constrained device, and a "roidc1_openidcConfiguration" data
+   structure that describes the OpenID Connect configuration and related
+   extension features supported by the RDAP server.
 
 4.1.1.  Session
 
-   The "session" data structure is an object that contains two sub-
-   objects:
+   The "roidc1_session" data structure is an object that contains two
+   sub-objects:
 
    1.  A "userClaims" object that contains the set of claims associated
        with the End-User's identity as used/requested by the RDAP server
@@ -514,9 +520,9 @@ Table of Contents
            supports refresh tokens.  As described in RFC 6749 [RFC6749],
            support for refresh tokens is OPTIONAL.
 
-   An example of a "session" data structure:
+   An example of a "roidc1_session" data structure:
 
-     "session": {
+     "roidc1_session": {
        "userClaims": {
          "sub": "103892603076825016132",
          "name": "User Person",
@@ -526,8 +532,11 @@ Table of Contents
          "email": "user@example.com",
          "email_verified": true,
          "locale": "en",
-         "purpose": "domainNameControl",
-         "dnt": false
+         "rdap_allowed_purposes": [
+           "domainNameControl",
+           "personalDataProtection"
+         ],
+         "rdap_dnt_allowed": false
        },
        "sessionInfo": {
          "tokenExpiration": 3599,
@@ -546,10 +555,10 @@ Table of Contents
    (http://curl.haxx.se/) or wget (https://www.gnu.org/software/wget/).
    This limitation can be addressed using a web browser on a second
    device.  The information that needs to be entered using the web
-   browser is contained in the "deviceInfo" data structure.
+   browser is contained in the "roidc1_deviceInfo" data structure.
 
-   The "deviceInfo" data structure is an object that contains three
-   members:
+   The "roidc1_deviceInfo" data structure is an object that contains
+   three members:
 
    1.  "verification_url": the URL that the End-User needs to visit
        using the web browser,
@@ -560,9 +569,9 @@ Table of Contents
        the user_code will expire.
 
 
-   An example of a "deviceInfo" data structure:
+   An example of a "roidc1_deviceInfo" data structure:
 
-     "deviceInfo": {
+     "roidc1_deviceInfo": {
        "verification_url": "https://www.example.com/device",
        "user_code": "NJJQ-GJFC",
        "expires_in": "1800"
@@ -570,39 +579,53 @@ Table of Contents
 
                                   Figure 2
 
-4.1.3.  OpenID Connect Remote Configuration
+4.1.3.  OpenID Connect Configuration
 
-   The "openidcRemoteConfiguration" data structure is an object with the
-   following members:
+   The "roidc1_openidcConfiguration" data structure is an object with
+   the following members:
 
-   1.  "endUserIdentifierDiscoverySupported": (OPTIONAL) a boolean value
+   1.  "dntSupported": (MANDATORY) a boolean value indicating RDAP
+       server support for the "rdap_dnt_allowed" claim (see
+       Section 3.1.4.2).
+   2.  "endUserIdentifierDiscoverySupported": (OPTIONAL) a boolean value
        indicating RDAP server support for discovery of End-User
        identifiers.  Default: true.
-   2.  "issuerIdentifierSupported": (OPTIONAL) a boolean value
+   3.  "issuerIdentifierSupported": (OPTIONAL) a boolean value
        indicating RDAP server support for explicit client specification
        of an Issuer Identifier.  Default: true.
-   3.  "openidcRemoteProviders": (OPTIONAL) a list of objects with the
+   4.  "openidcProviders": (OPTIONAL) a list of objects with the
        following members.  This data is RECOMMENDED if the value of
        issuerIdentifierSupported is "true":
        a.  "iss": (MANDATORY) a string value equal to Issuer Identifier
            of the OP as per OpenID Connect Core specification [OIDCC]
        b.  "name": (MANDATORY) a string value representing the human-
            friendly name of the OP.
+       c.  "type": (MANDATORY) a string value of either "local" or
+           "remote" that notes if the OP is local or remote in relation
+           to the RDAP server.
 
-   An example of a "openidcRemoteConfiguration" data structure:
+   An example of a "roidc1_openidcConfiguration" data structure:
 
-   "openidcRemoteConfiguration": {
+   "roidc1_openidcConfiguration": {
+     "dntSupported": false,
      "endUserIdentifierDiscoverySupported": true,
      "issuerIdentifierSupported": true,
-     "openidcRemoteProviders":
+     "openidcProviders":
        [
          {
            "iss": "https://idp.example.com",
-           "name": "Example IDP"
+           "name": "Example IDP",
+           "type": "remote"
          },
          {
            "iss": "https://accounts.example.net",
            "name": "Login with EXAMPLE"
+           "type": "remote"
+         },
+         {
+           "iss": "https://auth.nic.example/auth/realms/rdap",
+           "name": "Local OP for the Example RDAP server",
+           "type": "local"
          }
        ]
    }
@@ -611,12 +634,13 @@ Table of Contents
 
 4.2.  Client Login
 
-   Client authentication is requested by sending a "session/login"
-   request to an RDAP server.  If the RDAP server supports only remote
-   Authorization Servers, the "session/login" request MUST include at
-   least one of an End-User identifier or an OP Issuer Identifier.
+   Client authentication is requested by sending a "roidc1_session/
+   login" request to an RDAP server.  If the RDAP server supports only
+   remote Authorization Servers, the "roidc1_session/login" request MUST
+   include at least one of an End-User Identifier or an OP Issuer
+   Identifier.
 
-4.2.1.  End-User identifier
+4.2.1.  End-User Identifier
 
    The End-User identifier is delivered using one of two methods: by
    adding a query component to an RDAP request URI using the syntax
@@ -635,22 +659,22 @@ Table of Contents
    component that contains the client identifier issued by an OP.  An
    example for client identifier "user.idp.example":
 
-   https://example.com/rdap/session/login?id=user.idp.example
+   https://example.com/rdap/roidc1_session/login?id=user.idp.example
 
    The authorization header for the Basic authentication scheme contains
    a Base64-encoded representation of the client identifier issued by an
    OP.  No password is provided.  An example for client identifier
    "user.idp.example":
 
-   https://example.com/rdap/session/login
+   https://example.com/rdap/roidc1_session/login
 
    Authorization: Basic dXNlci5pZHAuZXhhbXBsZQ==
 
    An example for use with a local Authorization Server:
 
-   https://example.com/rdap/session/login
+   https://example.com/rdap/roidc1_session/login
 
-4.2.2.  Issuer Identifier
+4.2.2.  OP Issuer Identifier
 
    The OP's Issuer Identifier is delivered by adding a query component
    to an RDAP request URI using the syntax described in Section 3.4 of
@@ -658,16 +682,16 @@ Table of Contents
    Authorization Server, the Issuer Identifier MAY be omitted.
 
    The query used to request client authentication is represented as an
-   OPTIONAL "key=value" pair using a key value of "remote_iss" and a
-   value component that contains the Issuer Identifier associated with
-   an OP.  An RDAP server MAY accept Issuer Identifiers not specified in
-   the "openidcRemoteConfiguration" data structure and MAY also decide
-   to accept specific Issuer Identifiers only from specific clients.
+   OPTIONAL "key=value" pair using a key value of "iss" and a value
+   component that contains the Issuer Identifier associated with an OP.
+   An RDAP server MAY accept Issuer Identifiers not specified in the
+   "roidc1_openidcConfiguration" data structure and MAY also decide to
+   accept specific Issuer Identifiers only from specific clients.
 
    An example for Issuer Identifier "https://idp.example.com":
 
-   https://example.com/rdap/session/
-   login?remote_iss=https%3A%2F%2Fidp.example.com
+   https://example.com/rdap/roidc1_session/
+   login?iss=https%3A%2F%2Fidp.example.com
 
 4.2.3.  Login Response
 
@@ -675,13 +699,13 @@ Table of Contents
    specified in RFC 9083 [RFC9083].  In addition, the response MUST
    include an indication of the requested operation's success or failure
    in the "notices" data structure (including the client identifier),
-   and, if successful, a "session" data structure.
+   and, if successful, a "roidc1_session" data structure.
 
-   An example of a successful "session/login" response:
+   An example of a successful "roidc1_session/login" response:
 
        {
          "rdapConformance": [
-           "rdap_openidc_remote_level_0"
+           "roidc1"
          ],
          "lang": "en-US",
          "notices": {
@@ -691,7 +715,7 @@ Table of Contents
              "user.idp.example"
            ],
          },
-         "session": {
+         "roidc1_session": {
            "userClaims": {
              "sub": "103892603076825016132",
              "name": "User Person",
@@ -701,8 +725,11 @@ Table of Contents
              "email": "user@example.com",
              "email_verified": true,
              "locale": "en",
-             "purpose": "domainNameControl",
-             "dnt": false
+             "rdap_allowed_purposes": [
+               "domainNameControl",
+               "personalDataProtection"
+             ],
+             "rdap_dnt_allowed": false
            },
            "sessionInfo": {
              "tokenExpiration": 3599,
@@ -713,11 +740,11 @@ Table of Contents
 
                                   Figure 4
 
-   An example of a failed "session/login" response:
+   An example of a failed "roidc1_session/login" response:
 
        {
          "rdapConformance": [
-           "rdap_openidc_remote_level_0"
+           "roidc1"
          ],
          "lang": "en-US",
          "notices": {
@@ -743,17 +770,17 @@ Table of Contents
 
 4.2.4.1.  UI-constrained Client Login
 
-   Client authentication is requested by sending a "session/device"
-   request to an RDAP server.  If the RDAP server supports only remote
-   Authorization Servers, the "session/device" request MUST include an
-   End-User identifier that's delivered using one of two methods: by
-   adding a query component to an RDAP request URI using the syntax
-   described in Section 3.4 of RFC 3986 [RFC3986], or by including an
-   HTTP authorization header for the Basic authentication scheme as
-   described in RFC 7617 [RFC7617].  If the RDAP server supports a local
-   Authorization Server, the End-User identifier MAY be omitted.
-   Clients can use either of these methods.  Servers MUST support both
-   methods.
+   Client authentication is requested by sending a "roidc1_session/
+   device" request to an RDAP server.  If the RDAP server supports only
+   remote Authorization Servers, the "roidc1_session/device" request
+   MUST include an End-User identifier that's delivered using one of two
+   methods: by adding a query component to an RDAP request URI using the
+   syntax described in Section 3.4 of RFC 3986 [RFC3986], or by
+   including an HTTP authorization header for the Basic authentication
+   scheme as described in RFC 7617 [RFC7617].  If the RDAP server
+   supports a local Authorization Server, the End-User identifier MAY be
+   omitted.  Clients can use either of these methods.  Servers MUST
+   support both methods.
 
    The query used to request client authentication is represented as an
    OPTIONAL "key=value" pair using a key value of "id" and a value
@@ -781,13 +808,13 @@ Table of Contents
    specified in RFC 9083 [RFC9083].  In addition, the response MUST
    include an indication of the requested operation's success or failure
    in the "notices" data structure (including the client identifier),
-   and, if successful, a "deviceInfo" data structure.
+   and, if successful, a "roidc1_deviceInfo" data structure.
 
-   An example of a "session/device" response:
+   An example of a "roidc1_session/device" response:
 
      {
        "rdapConformance": [
-         "rdap_openidc_remote_level_0"
+         "roidc1"
        ],
        "lang": "en-US",
        "notices": {
@@ -797,7 +824,7 @@ Table of Contents
            "user.idp.example"
          ]
        },
-       "deviceInfo": {
+       "roidc1_deviceInfo": {
          "verification_url": "https://www.example.com/device",
          "user_code": "NJJQ-GJFC",
          "expires_in": 1800
@@ -808,53 +835,102 @@ Table of Contents
 
 4.2.4.2.  UI-constrained Client Login Polling
 
-   After successful processing of the "session/device" request, the
-   client MUST send a "session/devicepoll" request to the RDAP server to
-   continue the login process.  This request performs the polling
-   function described in RFC 8628 [RFC8628], allowing the RDAP server to
-   wait for the End-User to enter the information returned from the
-   "session/device" request using the interface on their second device.
-   After the End-User has completed that process, or if the process
-   fails or times out, the OP will respond to the polling requests with
-   an indication of success or failure.
+   After successful processing of the "roidc1_session/device" request,
+   the client MUST send a "roidc1_session/devicepoll" request to the
+   RDAP server to continue the login process.  This request performs the
+   polling function described in RFC 8628 [RFC8628], allowing the RDAP
+   server to wait for the End-User to enter the information returned
+   from the "roidc1_session/device" request using the interface on their
+   second device.  After the End-User has completed that process, or if
+   the process fails or times out, the OP will respond to the polling
+   requests with an indication of success or failure.
 
    An example using wget:
 
       wget -qO- --load-cookies cookies.txt\
-      https://example.com/rdap/session/devicepoll
+      https://example.com/rdap/roidc1_session/devicepoll
 
                                   Figure 9
 
    An example using curl:
 
-      curl -b cookies.txt https://example.com/rdap/session/devicepoll
+   curl -b cookies.txt https://example.com/rdap/roidc1_session/devicepoll
 
-                                 Figure 10
+                              Figure 10
 
    The response to this request MUST use the response structures
    described in Section 4.2.  RDAP query processing can continue
    normally on the UI-constrained device once the "login" process has
    been completed.
 
-4.3.  Session Status
+4.3.  RDAP Query Parameters
+
+   This specification describes two OPTIONAL query parameters for use
+   with RDAP queries that request access to information associated with
+   protected resources:
+
+   1.  "qp": A query parameter to identify the purpose of the query.
+   2.  "dnt": A query parameter to request that the server not log or
+       otherwise record information about the identity associated with a
+       query.
+
+   One or both of these parameters MAY be added to an RDAP request URI
+   using the syntax described in Section 3.4 of RFC 3986 [RFC3986].
+
+4.3.1.  RDAP Query Purpose
+
+   This query is represented as a "key=value" pair using a key value of
+   "qp" and a value component that contains a single query purpose
+   string from the set of allowed purposes associated with the End-
+   User's identity (see Section 3.1.4.1).  If present, the server MUST
+   compare the value of the parameter to the "rdap_allowed_purposes"
+   claim values associated with the End-User's identity and ensure that
+   the requested purpose is present in the set of allowed purposes.  The
+   server MUST return an HTTP 403 (Forbidden) response if the requested
+   purpose is not an allowed purpose.  If this parameter is not present,
+   the server MUST proces the query and make an acces control decision
+   based on any other information known to the server about the End-User
+   and the information they are requesting.  For example, a server MAY
+   treat the request as one performed by an unidentified or
+   unauthenticated user and return either an error or an appropriate
+   subset of the available data.  An example domain query using the "qp"
+   query parameter:
+
+   https://example.com/rdap/domain/example.com?qp=legalActions
+
+4.3.2.  RDAP Do Not Track
+
+   This query is represented as a "key=value" pair using a key value of
+   "dnt" and a value component that contains a single boolean value.  A
+   value of "true" indicates that the End-User is requesting that their
+   query not be tracked or logged in accordance with server policy.  A
+   value of "false" indicates that the End-User is accepting that their
+   query can be tracked or logged in accordance with server policy.  The
+   server MUST return an HTTP 501 (Not Implemented) response if the
+   server is unable to perform the action requested by this query
+   parameter.  An example domain query using the "dnt" query parameter:
+
+   https://example.com/rdap/domain/example.com?dnt=true
+
+4.4.  Session Status
 
    Clients MAY send a query to an RDAP server to determine the status of
-   an existing login session using a "session/status" path segment.  An
-   example "session/status" request:
+   an existing login session using a "roidc1_session/status" path
+   segment.  An example "roidc1_session/status" request:
 
-   https://example.com/rdap/session/status
+   https://example.com/rdap/roidc1_session/status
 
    The response to this query MUST use the response structures specified
    in RFC 9083 [RFC9083].  In addition, the response MUST include an
    indication of the requested operation's success or failure in the
    "notices" data structure (including the client identifier), and, if
-   successful, a "session" data structure.
+   successful, a "roidc1_session" data structure.
 
-   An example of a "session/status" response:
+   An example of a "roidc1_session/status" response:
 
      {
        "rdapConformance": [
-         "rdap_openidc_remote_level_0"
+         "roidc1"
        ],
        "lang": "en-US",
        "notices": {
@@ -864,7 +940,7 @@ Table of Contents
            "user.idp.example"
          ]
        },
-       "session": {
+       "roidc1_session": {
          "userClaims": {
            "sub": "103892603076825016132",
            "name": "User Person",
@@ -874,8 +950,11 @@ Table of Contents
            "email": "user@example.com",
            "email_verified": true,
            "locale": "en",
-           "purpose": "domainNameControl",
-           "dnt": false
+           "rdap_allowed_purposes": [
+             "domainNameControl",
+             "personalDataProtection"
+           ],
+           "rdap_dnt_allowed": false
          },
          "sessionInfo": {
            "tokenExpiration": 3490,
@@ -886,33 +965,33 @@ Table of Contents
 
                                  Figure 11
 
-4.4.  Session Refresh
+4.5.  Session Refresh
 
    Clients MAY send a request to an RDAP server to refresh, or extend,
-   an existing login session using a "session/refresh" path segment.
-   The RDAP server MAY attempt to refresh the access token associated
-   with the current session as part of extending the session for a
-   period of time determined by the RDAP server.  As described in RFC
-   6749 [RFC6749], OP support for refresh tokens is OPTIONAL.  An RDAP
-   server MUST determine if the OP supports token refresh and process
-   the refresh request by either requesting refresh of the access token
-   or by returning a response that indicates that token refresh is not
-   supported by the OP in the "notices" data structure.  An example
-   "session/refresh" request:
+   an existing login session using a "roidc1_session/refresh" path
+   segment.  The RDAP server MAY attempt to refresh the access token
+   associated with the current session as part of extending the session
+   for a period of time determined by the RDAP server.  As described in
+   RFC 6749 [RFC6749], OP support for refresh tokens is OPTIONAL.  An
+   RDAP server MUST determine if the OP supports token refresh and
+   process the refresh request by either requesting refresh of the
+   access token or by returning a response that indicates that token
+   refresh is not supported by the OP in the "notices" data structure.
+   An example "roidc1_session/refresh" request:
 
-   https://example.com/rdap/session/refresh
+   https://example.com/rdap/roidc1_session/refresh
 
    The response to this request MUST use the response structures
    specified in RFC 9083 [RFC9083].  In addition, the response MUST
    include an indication of the requested operation's success or failure
    in the "notices" data structure (including the client identifier),
-   and, if successful, a "session" data structure.
+   and, if successful, a "roidc1_session" data structure.
 
-   An example of a "session/refresh" response:
+   An example of a "roidc1_session/refresh" response:
 
      {
        "rdapConformance": [
-         "rdap_openidc_remote_level_0"
+         "roidc1"
        ],
        "lang": "en-US",
        "notices": {
@@ -923,7 +1002,7 @@ Table of Contents
            "Token refresh succeeded."
          ]
        },
-       "session": {
+       "roidc1_session": {
          "userClaims": {
            "sub": "103892603076825016132",
            "name": "User Person",
@@ -933,8 +1012,11 @@ Table of Contents
            "email": "user@example.com",
            "email_verified": true,
            "locale": "en",
-           "purpose": "domainNameControl",
-           "dnt": false
+           "rdap_allowed_purposes": [
+             "domainNameControl",
+             "personalDataProtection"
+           ],
+           "rdap_dnt_allowed": false
          },
          "sessionInfo": {
            "tokenExpiration": 3599,
@@ -945,23 +1027,23 @@ Table of Contents
 
                                  Figure 12
 
-4.5.  Client Logout
+4.6.  Client Logout
 
    Clients MAY send a request to an RDAP server to terminate an existing
    login session.  Termination of a session is requested using a
-   "session/logout" path segment.  Access and refresh tokens can be
-   revoked during the "session/logout" process as described in RFC 7009
-   [RFC7009] if supported by the OP (token revocation endpoint support
-   is OPTIONAL per RFC 8414 [RFC8414]).  If supported, this feature
-   SHOULD be used to ensure that the tokens are not mistakenly
+   "roidc1_session/logout" path segment.  Access and refresh tokens can
+   be revoked during the "roidc1_session/logout" process as described in
+   RFC 7009 [RFC7009] if supported by the OP (token revocation endpoint
+   support is OPTIONAL per RFC 8414 [RFC8414]).  If supported, this
+   feature SHOULD be used to ensure that the tokens are not mistakenly
    associated with a future RDAP session.  Alternatively, an RDAP server
    MAY attempt to logout from the OP using the "OpenID Connect RP-
    Initiated Logout" protocol ([OIDCL]) if that protocol is supported by
    the OP.
 
-   An example "session/logout" request:
+   An example "roidc1_session/logout" request:
 
-   https://example.com/rdap/session/logout
+   https://example.com/rdap/roidc1_session/logout
 
    The response to this request MUST use the response structures
    specified in RFC 9083 [RFC9083].  In addition, the response MUST
@@ -971,11 +1053,11 @@ Table of Contents
    success or failure of any attempt to logout from the OP or to revoke
    the tokens issued by the OP.
 
-   An example of a "session/logout" response:
+   An example of a "roidc1_session/logout" response:
 
      {
        "rdapConformance": [
-         "rdap_openidc_remote_level_0"
+         "roidc1"
        ],
        "lang": "en-US",
        "notices": {
@@ -998,7 +1080,7 @@ Table of Contents
    SHOULD include revoking the tokens or logging out from the OP if
    either operation is supported by the OP.
 
-4.6.  Parameter Processing
+4.7.  Parameter Processing
 
    Unrecognized query parameters MUST be ignored.  An RDAP server that
    processes an authenticated query MUST determine if the End-User
@@ -1034,11 +1116,11 @@ Table of Contents
    queries outright, and it MAY include omitting or otherwise redacting
    information that the End-User is not authorized to receive.  Specific
    processing requirements are beyond the scope of this document.  A
-   client can end a session explicitly by sending a "session/logout"
-   request to the RDAP server.  A session can also be ended implicitly
-   by the server after a server-defined period of time.  The status of a
-   session can be determined at any time by sending a "session/status"
-   query to the RDAP server.
+   client can end a session explicitly by sending a "roidc1_session/
+   logout" request to the RDAP server.  A session can also be ended
+   implicitly by the server after a server-defined period of time.  The
+   status of a session can be determined at any time by sending a
+   "roidc1_session/status" query to the RDAP server.
 
    An RDAP server MUST maintain session state information for the
    duration of an active session.  This is commonly done using HTTP
@@ -1050,20 +1132,16 @@ Table of Contents
 
    RDAP responses that contain values described in this document MUST
    indicate conformance with this specification by including an
-   rdapConformance ([RFC9083]) value of "rdap_openidc_remote_level_0"
-   (to indicate support for one or more remote Authorization Servers),
-   "rdap_openidc_local_level_0" (to indicate support for a local
-   Authorization Server), or both values if the server supports both
-   remote and local OpenID Authorization Servers.  The information
-   needed to register these values in the RDAP Extensions Registry is
-   described in Section 8.1.
+   rdapConformance ([RFC9083]) value of "roidc1" (RDAP OpenID Connect
+   version 1).  The information needed to register this value in the
+   RDAP Extensions Registry is described in Section 8.1.
 
    Example rdapConformance structure with extension specified:
 
       "rdapConformance" :
         [
           "rdap_level_0",
-          "rdap_openidc_remote_level_0"
+          "roidc1"
         ]
 
                                  Figure 14
@@ -1072,41 +1150,33 @@ Table of Contents
 
 8.1.  RDAP Extensions Registry
 
-   IANA is requested to register the following values in the RDAP
+   IANA is requested to register the following value in the RDAP
    Extensions Registry:
 
-      Extension identifier: rdap_openidc_remote_level_0
+      Extension identifier: roidc1
       Registry operator: Any
       Published specification: This document.
       Contact: IESG <iesg@ietf.org>
-      Intended usage: This extension describes a federated
-      authentication method for RDAP using OAuth 2.0, OpenID Connect,
-      and a remote Authorization Server.
-
-      Extension identifier: rdap_openidc_local_level_0
-      Registry operator: Any
-      Published specification: This document.
-      Contact: IESG <iesg@ietf.org>
-      Intended usage: This extension describes a federated
-      authentication method for RDAP using OAuth 2.0, OpenID Connect,
-      and a local Authorization Server.
+      Intended usage: This extension describes version 1 of a federated
+      authentication method for RDAP using OAuth 2.0 and OpenID Connect.
 
 8.2.  JSON Web Token Claims Registry
 
    IANA is requested to register the following values in the JSON Web
    Token Claims Registry:
 
-      Claim Name: "purpose"
-      Claim Description: This claim describes the stated purpose for
-      submitting a request to access a protected RDAP resource.
+      Claim Name: "rdap_allowed_purposes"
+      Claim Description: This claim describes the set of RDAP query
+      purposes that are available to an identity that is presented for
+      access to a protected RDAP resource.
       Change Controller: IESG
       Specification Document(s): Section 3.1.4.1 of this document.
 
-      Claim Name: "dnt"
+      Claim Name: "rdap_dnt_allowed"
       Claim Description: This claim contains a JSON boolean literal that
-      describes an End-User's "do not track" preference for identity
-      tracking, logging, or recording when accessing a protected RDAP
-      resource.
+      describes a "do not track" request for server-side tracking,
+      logging, or recording of an identity that is presented for access
+      to a protected RDAP resource.
       Change Controller: IESG
       Specification Document(s): Section 3.1.4.2 of this document.
 
@@ -1541,6 +1611,11 @@ Appendix A.  Change Log
    12:  Updated data structure descriptions.  Updated Section 8.  Minor
       formatting changes due to a move to xml2rfc-v3 markup.
    13:  Added support for OP discovery via OP's Issuer Identifier.
+      Modified the RDAP conformance text to use "roidc1", and added that
+      value to extension path segments and data structures.  Changed the
+      "purpose" and "dnt" claims to "rdap_allowed_purposes" (making it
+      an array) and "rdap_dnt_allowed".  Added the "qp" and "dnt" query
+      parameters.
 
 Author's Address
 
