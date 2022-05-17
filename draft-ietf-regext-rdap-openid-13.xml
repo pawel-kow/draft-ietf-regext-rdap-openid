@@ -138,7 +138,7 @@
         </section>
         
         <section anchor="process" title="RDAP Authentication and Authorization Steps">
-          <t>End-Users MAY present an identifier (an OpenID) issued by an OP to use OpenID Connect with RDAP. If the RDAP server supports a local Authorization Server or End-User identifier discovery is not supported, the End-User identifier MAY be omitted. An OP SHOULD include support for the claims described in <xref target="rdap-claims"/> to provide additional information needed for RDAP End-User authorization. OpenID Connect requires RPs to register with OPs to use OpenID Connect services for an End-User. The registration process is often completed using out-of-band methods, but it is also possible to use the automated method described by the "OpenID Connect Dynamic Client Registration" protocol <xref target="OIDCR"/>. The parties involved can use any method that is mutually acceptable.</t>
+          <t>End-Users MAY present an identifier (an OpenID) issued by an OP to use OpenID Connect with RDAP. If the RDAP server supports a default Authorization Server or End-User identifier discovery is not supported, the End-User identifier MAY be omitted. An OP SHOULD include support for the claims described in <xref target="rdap-claims"/> to provide additional information needed for RDAP End-User authorization. OpenID Connect requires RPs to register with OPs to use OpenID Connect services for an End-User. The registration process is often completed using out-of-band methods, but it is also possible to use the automated method described by the "OpenID Connect Dynamic Client Registration" protocol <xref target="OIDCR"/>. The parties involved can use any method that is mutually acceptable.</t>
       
           <section anchor="discovery" title="Provider Discovery">
             <t>An RDAP server/RP needs to be able to map an End-User's identifier to an OP. This can be accomplished using the OPTIONAL "OpenID Connect Discovery" protocol <xref target="OIDCD"/>, but that protocol is not widely implemented. Out-of-band methods are also possible and can be more dependable. For example, an RP can support a limited number of OPs and maintain internal associations of those identifiers with the OPs that issued them.</t>
@@ -292,15 +292,15 @@
 	    <section anchor="openidcConfiguration" title="OpenID Connect Configuration">
           <t>The "roidc1_openidcConfiguration" data structure is an object with the following members:</t>
           <t><list style="numbers">
-            <t>"dntSupported": (MANDATORY) a boolean value that describes RDAP server support for the "rdap_dnt_allowed" query parameter (see <xref target="rdap-do-not-track"/>).</t>
-            <t>"endUserIdentifierDiscoverySupported": (OPTIONAL) a boolean value that describes RDAP server support for discovery of End-User identifiers. Default: true.</t>
-            <t>"issuerIdentifierSupported": (OPTIONAL) a boolean value that describes RDAP server support for explicit client specification of an Issuer Identifier. Default: true.</t>
-  	        <t>"openidcProviders": (OPTIONAL) a list of objects with the following members. This data is RECOMMENDED if the value of issuerIdentifierSupported is "true":</t>
+            <t>"dntSupported": (MANDATORY) a boolean value that describes RDAP server support for the "roidc1_dnt" query parameter (see <xref target="rdap-do-not-track"/>).</t>
+            <t>"endUserIdentifierDiscoverySupported": (OPTIONAL) a boolean value that describes RDAP server support for discovery of End-User identifiers. The default value is "true".</t>
+            <t>"issuerIdentifierSupported": (OPTIONAL) a boolean value that describes RDAP server support for explicit client specification of an Issuer Identifier. The default value is "true".</t>
+  	        <t>"openidcProviders": (OPTIONAL) a list of objects with the following members that describes the set of OPs that are supported by the RDAP server. This data is RECOMMENDED if the value of issuerIdentifierSupported is "true":</t>
 		  
             <t><list style="letters">
               <t>"iss": (MANDATORY) a string value equal to Issuer Identifier of the OP as per OpenID Connect Core specification <xref target="OIDCC"/></t>
               <t>"name": (MANDATORY) a string value representing the human-friendly name of the OP.</t>
-              <t>"default": (MANDATORY) a boolean value that describes RDAP server support for an OPTIONAL local OP that will be used when a client omits the "roidc1_id" and "roidc1_iss" query parameters from a "roidc1_session/login" request.</t>
+              <t>"default": (OPTIONAL) a boolean value that describes RDAP server support for an OPTIONAL default OP that will be used when a client omits the "roidc1_id" and "roidc1_iss" query parameters from a "roidc1_session/login" request. Only one member of this set can be identified as the default OP by setting a value of "true". The default value is "false".</t>
             </list></t>
           </list></t>
 		  
@@ -315,17 +315,15 @@
     [
       {
         "iss": "https://idp.example.com",
-        "name": "Example IDP",
-        "default": "false"
+        "name": "Example IDP"
       },
       {
         "iss": "https://accounts.example.net",
         "name": "Login with EXAMPLE"
-        "default": "false"
       },
       {
         "iss": "https://auth.nic.example/auth/realms/rdap",
-        "name": "Local OP for the Example RDAP server",
+        "name": "Default OP for the Example RDAP server",
         "default": "true"
       }
     ]
@@ -339,7 +337,7 @@
         <t>Client authentication is requested by sending a "roidc1_session/login" request to an RDAP server. If the RDAP server supports only remote Authorization Servers, the "roidc1_session/login" request MUST include at least one of an End-User Identifier or an OP Issuer Identifier.</t>
 		
         <section anchor="end-user-identifier" title="End-User Identifier">
-          <t>The End-User identifier is delivered using one of two methods: by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>, or by including an HTTP authorization header for the Basic authentication scheme as described in RFC 7617 <xref target="RFC7617"/>. Clients can use either of these methods to deliver the End-User identifier to a server that supports remote Authorization Servers and End-User identifier discovery. Servers that support remote Authorization Servers and End-User identifier discovery MUST accept both methods. If the RDAP server supports a local Authorization Server or End-User identifier discovery is not supported, the End-User identifier MAY be omitted.</t>
+          <t>The End-User identifier is delivered using one of two methods: by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>, or by including an HTTP authorization header for the Basic authentication scheme as described in RFC 7617 <xref target="RFC7617"/>. Clients can use either of these methods to deliver the End-User identifier to a server that supports remote Authorization Servers and End-User identifier discovery. Servers that support remote Authorization Servers and End-User identifier discovery MUST accept both methods. If the RDAP server supports a default Authorization Server or End-User identifier discovery is not supported, the End-User identifier MAY be omitted.</t>
 
           <t>The query used to request client authentication is represented as an OPTIONAL "key=value" pair using a key value of "roidc1_id" and a value component that contains the client identifier issued by an OP. An example for client identifier "user.idp.example":</t>
         
@@ -350,12 +348,12 @@
           <t>https://example.com/rdap/roidc1_session/login</t>
           <t>Authorization: Basic dXNlci5pZHAuZXhhbXBsZQ==</t>
 
-          <t>An example for use with a local Authorization Server:</t>        
+          <t>An example for use with a default Authorization Server:</t>        
           <t>https://example.com/rdap/roidc1_session/login</t>
         </section>
 		
         <section anchor="issuer-identifier" title="OP Issuer Identifier">
-          <t>The OP's Issuer Identifier is delivered by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>. If the RDAP server supports a local Authorization Server, the Issuer Identifier MAY be omitted.</t>
+          <t>The OP's Issuer Identifier is delivered by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>. If the RDAP server supports a default Authorization Server, the Issuer Identifier MAY be omitted.</t>
 
           <t>The query used to request client authentication is represented as an OPTIONAL "key=value" pair using a key value of "roidc1_iss" and a value component that contains the Issuer Identifier associated with an OP. An RDAP server MAY accept Issuer Identifiers not specified in the "roidc1_openidcConfiguration" data structure and MAY also decide to accept specific Issuer Identifiers only from specific clients.</t>
             
@@ -429,7 +427,7 @@
           <t>The "OAuth 2.0 Device Authorization Grant" <xref target="RFC8628"/> provides an OPTIONAL method to request user authorization from devices that have an Internet connection, but lack a suitable browser for a more traditional OAuth flow. This method requires an End-User to use a second device (such as a smart telephone) that has access to a web browser for entry of a code sequence that is presented on the UI-constrained device.</t>
       
           <section anchor="client-login-device" title="UI-constrained Client Login">
-            <t>Client authentication is requested by sending a "roidc1_session/device" request to an RDAP server. If the RDAP server supports only remote Authorization Servers, the "roidc1_session/device" request MUST include an End-User identifier that's delivered using one of two methods: by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>, or by including an HTTP authorization header for the Basic authentication scheme as described in RFC 7617 <xref target="RFC7617"/>. If the RDAP server supports a local Authorization Server, the End-User identifier MAY be omitted. Clients can use either of these methods. Servers MUST support both methods.</t>
+            <t>Client authentication is requested by sending a "roidc1_session/device" request to an RDAP server. If the RDAP server supports only remote Authorization Servers, the "roidc1_session/device" request MUST include an End-User identifier that's delivered using one of two methods: by adding a query component to an RDAP request URI using the syntax described in Section 3.4 of RFC 3986 <xref target="RFC3986"/>, or by including an HTTP authorization header for the Basic authentication scheme as described in RFC 7617 <xref target="RFC7617"/>. If the RDAP server supports a default Authorization Server, the End-User identifier MAY be omitted. Clients can use either of these methods. Servers MUST support both methods.</t>
 
             <t>The query used to request client authentication is represented as an OPTIONAL "key=value" pair using a key value of "id" and a value component that contains the client identifier issued by an OP.</t>
       
@@ -962,11 +960,11 @@
           <t hangText="06:">Keepalive refresh.</t>
           <t hangText="07:">Added "login_hint" description to <xref target="auth-request"/>. Added some text to <xref target="rdap_dnt_allowed"/> to note that "do not track" requires compliance with local regulations.</t>
           <t hangText="08:">Rework of token management processing in Sections 4 and 5.</t>
-          <t hangText="09:">Updated RDAP specification references. Added text to describe both local and remote Authorization Server processing. Removed text that described passing of ID Tokens as query parameters.</t>
+          <t hangText="09:">Updated RDAP specification references. Added text to describe both default and remote Authorization Server processing. Removed text that described passing of ID Tokens as query parameters.</t>
           <t hangText="10:">Updated <xref target="discovery"/>. Replaced token processing queries with "login", "session", and "logout" queries.</t>
           <t hangText="11:">Replaced queries with "session/*" queries. Added description of "rdap" OAuth scope. Added implementation status information.</t>
           <t hangText="12:">Updated data structure descriptions. Updated <xref target="IANA"/>. Minor formatting changes due to a move to xml2rfc-v3 markup.</t>
-          <t hangText="13:">Added support for OP discovery via OP's Issuer Identifier. Modified the RDAP conformance text to use "roidc1", and added that value to extension path segments, data structures, and query parameters. Changed the "purpose" and "dnt" claims to "rdap_allowed_purposes" (making it an array) and "rdap_dnt_allowed". Added the "roidc1_qp" and "roidc1_dnt" query parameters.</t>
+          <t hangText="13:">Added support for OP discovery via OP's Issuer Identifier. Modified the RDAP conformance text to use "roidc1", and added that value to extension path segments, data structures, and query parameters. Changed the "purpose" and "dnt" claims to "rdap_allowed_purposes" (making it an array) and "rdap_dnt_allowed". Added the "roidc1_qp" and "roidc1_dnt" query parameters. Changed the descriptions of "local" OPs to "default" OPs.</t>
         </list>
       </t>
     </section>

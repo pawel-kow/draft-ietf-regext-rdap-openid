@@ -278,7 +278,7 @@ Table of Contents
 3.1.3.  RDAP Authentication and Authorization Steps
 
    End-Users MAY present an identifier (an OpenID) issued by an OP to
-   use OpenID Connect with RDAP.  If the RDAP server supports a local
+   use OpenID Connect with RDAP.  If the RDAP server supports a default
    Authorization Server or End-User identifier discovery is not
    supported, the End-User identifier MAY be omitted.  An OP SHOULD
    include support for the claims described in Section 3.1.4 to provide
@@ -587,25 +587,28 @@ Table of Contents
    the following members:
 
    1.  "dntSupported": (MANDATORY) a boolean value that describes RDAP
-       server support for the "rdap_dnt_allowed" query parameter (see
+       server support for the "roidc1_dnt" query parameter (see
        Section 4.3.2).
    2.  "endUserIdentifierDiscoverySupported": (OPTIONAL) a boolean value
        that describes RDAP server support for discovery of End-User
-       identifiers.  Default: true.
+       identifiers.  The default value is "true".
    3.  "issuerIdentifierSupported": (OPTIONAL) a boolean value that
        describes RDAP server support for explicit client specification
-       of an Issuer Identifier.  Default: true.
+       of an Issuer Identifier.  The default value is "true".
    4.  "openidcProviders": (OPTIONAL) a list of objects with the
-       following members.  This data is RECOMMENDED if the value of
-       issuerIdentifierSupported is "true":
+       following members that describes the set of OPs that are
+       supported by the RDAP server.  This data is RECOMMENDED if the
+       value of issuerIdentifierSupported is "true":
        a.  "iss": (MANDATORY) a string value equal to Issuer Identifier
            of the OP as per OpenID Connect Core specification [OIDCC]
        b.  "name": (MANDATORY) a string value representing the human-
            friendly name of the OP.
-       c.  "default": (MANDATORY) a boolean value that describes RDAP
-           server support for an OPTIONAL local OP that will be used
+       c.  "default": (OPTIONAL) a boolean value that describes RDAP
+           server support for an OPTIONAL default OP that will be used
            when a client omits the "roidc1_id" and "roidc1_iss" query
-           parameters from a "roidc1_session/login" request.
+           parameters from a "roidc1_session/login" request.  Only one
+           member of this set can be identified as the default OP by
+           setting a value of "true".  The default value is "false".
 
    An example of a "roidc1_openidcConfiguration" data structure:
 
@@ -617,17 +620,15 @@ Table of Contents
        [
          {
            "iss": "https://idp.example.com",
-           "name": "Example IDP",
-           "default": "false"
+           "name": "Example IDP"
          },
          {
            "iss": "https://accounts.example.net",
            "name": "Login with EXAMPLE"
-           "default": "false"
          },
          {
            "iss": "https://auth.nic.example/auth/realms/rdap",
-           "name": "Local OP for the Example RDAP server",
+           "name": "Default OP for the Example RDAP server",
            "default": "true"
          }
        ]
@@ -654,7 +655,7 @@ Table of Contents
    remote Authorization Servers and End-User identifier discovery.
    Servers that support remote Authorization Servers and End-User
    identifier discovery MUST accept both methods.  If the RDAP server
-   supports a local Authorization Server or End-User identifier
+   supports a default Authorization Server or End-User identifier
    discovery is not supported, the End-User identifier MAY be omitted.
 
    The query used to request client authentication is represented as an
@@ -674,7 +675,7 @@ Table of Contents
 
    Authorization: Basic dXNlci5pZHAuZXhhbXBsZQ==
 
-   An example for use with a local Authorization Server:
+   An example for use with a default Authorization Server:
 
    https://example.com/rdap/roidc1_session/login
 
@@ -682,7 +683,7 @@ Table of Contents
 
    The OP's Issuer Identifier is delivered by adding a query component
    to an RDAP request URI using the syntax described in Section 3.4 of
-   RFC 3986 [RFC3986].  If the RDAP server supports a local
+   RFC 3986 [RFC3986].  If the RDAP server supports a default
    Authorization Server, the Issuer Identifier MAY be omitted.
 
    The query used to request client authentication is represented as an
@@ -782,8 +783,8 @@ Table of Contents
    syntax described in Section 3.4 of RFC 3986 [RFC3986], or by
    including an HTTP authorization header for the Basic authentication
    scheme as described in RFC 7617 [RFC7617].  If the RDAP server
-   supports a local Authorization Server, the End-User identifier MAY be
-   omitted.  Clients can use either of these methods.  Servers MUST
+   supports a default Authorization Server, the End-User identifier MAY
+   be omitted.  Clients can use either of these methods.  Servers MUST
    support both methods.
 
    The query used to request client authentication is represented as an
@@ -1610,7 +1611,7 @@ Appendix A.  Change Log
       compliance with local regulations.
    08:  Rework of token management processing in Sections 4 and 5.
    09:  Updated RDAP specification references.  Added text to describe
-      both local and remote Authorization Server processing.  Removed
+      both default and remote Authorization Server processing.  Removed
       text that described passing of ID Tokens as query parameters.
    10:  Updated Section 3.1.3.1.  Replaced token processing queries with
       "login", "session", and "logout" queries.
@@ -1624,7 +1625,8 @@ Appendix A.  Change Log
       parameters.  Changed the "purpose" and "dnt" claims to
       "rdap_allowed_purposes" (making it an array) and
       "rdap_dnt_allowed".  Added the "roidc1_qp" and "roidc1_dnt" query
-      parameters.
+      parameters.  Changed the descriptions of "local" OPs to "default"
+      OPs.
 
 Author's Address
 
