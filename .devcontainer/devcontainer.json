@@ -22,7 +22,7 @@
 	// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
     "mounts": [
 //        "source=/var/run/docker.sock,target=/var/run/docker-host.sock,type=bind",
-        "source=${localWorkspaceFolder}/../.ssh,target=/root/.ssh,type=bind,consistency=cached"
+//        "source=${localWorkspaceFolder}/../.ssh,target=/root/.ssh,type=bind,consistency=cached"
     ],
 
 	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
