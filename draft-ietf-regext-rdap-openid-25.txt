@@ -4,13 +4,13 @@
 
 REGEXT Working Group                                       S. Hollenbeck
 Internet-Draft                                             Verisign Labs
-Intended status: Standards Track                         10 January 2023
-Expires: 14 July 2023
+Intended status: Standards Track                         12 October 2023
+Expires: 14 April 2024
 
 
    Federated Authentication for the Registration Data Access Protocol
                       (RDAP) using OpenID Connect
-                    draft-ietf-regext-rdap-openid-20
+                    draft-ietf-regext-rdap-openid-25
 
 Abstract
 
@@ -42,7 +42,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 14 July 2023.
+   This Internet-Draft will expire on 14 April 2024.
 
 Copyright Notice
 
@@ -191,9 +191,9 @@ Table of Contents
    14 [RFC2119] [RFC8174] when, and only when, they appear in all
    capitals, as shown here.
 
-   Unless otherwise specified, all of the HTTP requests described in
-   this document that are sent from an RDAP client to an RDAP server use
-   the HTTP GET method as specified in RFC 7231 [RFC7231].
+   All of the HTTP requests described in this document that are sent
+   from an RDAP client to an RDAP server use the HTTP GET method as
+   specified in [RFC9110].
 
 3.  Federated Authentication for RDAP
 
@@ -249,10 +249,10 @@ Table of Contents
    Token", "Resource Owner", "Resource Server", and "Token Endpoint"
    defined by OAuth 2.0 [RFC6749]; the terms "Claim Name", "Claim
    Value", and "JSON Web Token (JWT)" defined by JSON Web Token (JWT)
-   [RFC7519]; and the term "ID Token" defined by OpenID Connect Core 1.0
-   [OIDCC].  "Access Token" is further defined by RFC 9068 [RFC9068].
-   Additional terms from Section 1.2 of the OpenID Connect Core
-   specification are incorporated by reference.
+   [RFC7519]; the term "ID Token" defined by OpenID Connect Core 1.0
+   [OIDCC]; and the term "JWT Access Token" defined by RFC 9068
+   [RFC9068].  Additional terms from Section 1.2 of the OpenID Connect
+   Core specification are incorporated by reference.
 
    This document uses the terms "remote" and "default" to describe the
    relationship between an RDAP server and the OpenID Providers that it
@@ -266,13 +266,24 @@ Table of Contents
    Server will use when the RDAP Client does not provide an Issuer
    Identifier or an End-User Identifier in the login request.
 
+   This document uses the term "session" to describe a set of
+   interactions between an RDAP client and an RDAP server during a given
+   period of time.  For session-oriented clients (see Section 3.1.2),
+   the RDAP session is a typical HTTP session starting with a
+   farv1_session/login request and ending with either a farv1_session/
+   logout request (see Section 5 for a description of both path
+   segments) or a timeout.  For token-oriented clients (see
+   Section 3.1.2 and Section 6), the RDAP session corresponds to the
+   lifespan of an authorization obtained from an OP and the
+   corresponding Access Token, including any refreshed Access Token.
+
 3.1.2.  Client Considerations
 
    Clients that delegate OIDC Authentication to an RDAP server as part
    of session-oriented interactions, and can accept and process HTTP
    cookies [RFC6265] to maintain the session, are known as "session-
    oriented" clients.  This type of RDAP client performs the role of
-   user agent [RFC2616].  An RDAP server performs the role of an OpenID
+   user agent [RFC9110].  An RDAP server performs the role of an OpenID
    Connect Core Relying Party (RP).  A web browser used to send queries
    directly to an RDAP server is an example of a session-oriented
    client.  Specifications for this type of client can be found in
@@ -291,8 +302,15 @@ Table of Contents
    Section 6.
 
    Clients MAY operate as either session-oriented or token-oriented
-   clients, but they MUST do so consistently during a given period of
-   interaction with an OP.  Servers MUST support both types of client.
+   clients, but they MUST do so consistently by not mixing token-
+   oriented and session-oriented requests while interacting with an OP.
+   Servers SHOULD support both types of client to maximize
+   interoperability, but MAY choose to support only one type of client
+   as required by local policy or operating conditions.  A server that
+   does not support a particular client type will not support the
+   protocol features (the data structures, path segments, parameters,
+   and interactions) specified for that client type.  Server signaling
+   of supported client types is described in Section 4.1.
 
 3.1.3.  Overview
 
@@ -300,15 +318,16 @@ Table of Contents
    using OpenID Connect requires completion of the following steps:
 
    1.   An RDAP client sends an RDAP "help" query to an RDAP server to
-        determine the type and capabilities of the OpenID OpenID
-        Providers that are used by the RDAP server.  This information is
-        returned in the rdapConformance section of the response.  A
-        value of "farv1" indicates support for the extension described
-        in this specification.  If one or more remote OpenID Providers
-        are supported, the RDAP client SHOULD evaluate the additional
+        determine the type and capabilities of the OpenID Providers that
+        are used by the RDAP server.  This information is returned in
+        the rdapConformance section of the response.  A value of "farv1"
+        indicates support for the extension described in this
+        specification.  If one or more remote OpenID Providers are
+        supported, the RDAP client SHOULD evaluate the additional
         information described in Section 4.1 in order to discover the
         capabilities of the RDAP server and optionally obtain the set of
-        supported OPs.
+        supported OPs unless that information is available from a
+        trusted out-of-band source and has already been processed.
    2.   An RDAP client (acting as an OpenID End-User) sends an RDAP
         "login" request to an RDAP server as described in Section 5.2.
    3.   The RDAP server (acting as an OpenID Relying Party (RP))
@@ -417,44 +436,47 @@ Table of Contents
    The steps above can be described in a sequence diagram:
 
    End          OpenID         RDAP                 RDAP
-   User        Provider       Server               Client
+   User        Provider       Client               Server
      |             |             |                    |
-     |             |             |<----Help Query-----|
+     |             |             |-----Help Query---->|
      |             |             |                    |
-     |             |             |---Help Response--->|
+     |             |             |<----Help Response--|
      |             |             |                    |
-     |--------------------Login Request-------------->|
+     |-------Login Request------>|                    |
      |             |             |                    |
-     |             |<-----Authentication Request------|
+     |             |<-Authentication                  |
+     |             |   Request---|                    |
      |             |             |                    |
-     | Credential--|             |                    |
-     |<--Request   |             |                    |
+     |<-Credential |             |                    |
+     |   Request---|             |                    |
      |             |             |                    |
      |--Credential |             |                    |
      |   Response->|             |                    |
      |             |             |                    |
-     |             |-----Authentication Response----->|
+     |             |--Authentication                  |
+     |             | Response--->|                    |
      |             |             |                    |
-     |             |<----------Token Request----------|
+     |             |<-Token      |                    |
+     |             |  Request----|                    |
      |             |             |                    |
-     |             |-----------Token Response-------->|
-     |             |             |                    |
-     |             |             |                    |
-     |<-----------------Login Response----------------|
-     |             |             |                    |
-     |--------------------RDAP Query----------------->|
-     |             |             |                    |
-     |             |             |<----RDAP Query-----|
-     |             |             |                    |
-     |             |    Claim----|                    |
-     |             |<---Request  |                    |
-     |             |             |                    |
-     |             |---Claim     |                    |
+     |             |--Token      |                    |
      |             |  Response-->|                    |
      |             |             |                    |
-     |             |             |---RDAP Response--->|
+     |<------Login Response------|                    |
      |             |             |                    |
-     |<----------------RDAP Response------------------|
+     |-----RDAP Query----------->|                    |
+     |             |             |                    |
+     |             |             |----RDAP Query----->|
+     |             |             |                    |
+     |             |<------------Claim                |
+     |             |            Request---------------|
+     |             |             |                    |
+     |             |-------------Claim                |
+     |             |            Response------------->|
+     |             |             |                    |
+     |             |             |<---RDAP Response---|
+     |             |             |                    |
+     |<----RDAP Response---------|                    |
 
                                   Figure 2
 
@@ -465,13 +487,15 @@ Table of Contents
    OpenID Provider or provider discovery is not supported, the End-User
    identifier MAY be omitted.  An OP SHOULD include support for the
    claims described in Section 3.1.5 to provide additional information
-   needed for RDAP End-User authorization.  OpenID Connect requires RPs
-   to register with OPs to use OpenID Connect services for an End-User.
-   The registration process is often completed using out-of-band
-   methods, but it is also possible to use the automated method
-   described by the "OpenID Connect Dynamic Client Registration"
-   protocol [OIDCR].  The parties involved can use any method that is
-   mutually acceptable.
+   needed for RDAP End-User authorization; in the absence of these
+   claims clients and servers MAY make authorization and access control
+   decisions as appropriate given any other information returned from
+   the OP.  OpenID Connect requires RPs to register with OPs to use
+   OpenID Connect services for an End-User.  The registration process is
+   often completed using out-of-band methods, but it is also possible to
+   use the automated method described by the "OpenID Connect Dynamic
+   Client Registration" protocol [OIDCR].  The parties involved can use
+   any method that is mutually acceptable.
 
 3.1.4.1.  Provider Discovery
 
@@ -486,11 +510,13 @@ Table of Contents
    Alternatively, if mapping of an End-User's identifier is not
    possible, or not supported by the RDAP server, the RDAP server SHOULD
    support explicit specification of a remote OP by the RDAP client in
-   the form of a query parameter as described in Section 5.2.2.  An RDAP
-   server MUST provide information about its capabilities and supported
-   OPs in the "help" query response in the "farv1_openidcConfiguration"
-   data structure described in Section 4.1.  An RDAP server/RP MUST
-   support at least one of these methods of OP discovery.
+   the form of a query parameter as described in Section 5.2.2 unless
+   the remote OP has been identified using an out-of-band mechanism.  An
+   RDAP server MUST provide information about its capabilities and
+   supported OPs in the "help" query response in the
+   "farv1_openidcConfiguration" data structure described in Section 4.1.
+   An RDAP server/RP MUST support at least one of these methods of OP
+   discovery.
 
 3.1.4.2.  Authentication Request
 
@@ -507,11 +533,13 @@ Table of Contents
    a human user are described in Section 3.1 of the OpenID Connect Core
    protocol.  The Implicit Flow is more commonly used by clients
    implemented in a web browser using a scripting language; it is
-   described in Section 3.2 of the OpenID Connect Core protocol.  The
-   Hybrid Flow (described in Section 3.3 of the OpenID Connect Core
-   protocol) combines elements of the Authorization and Implicit Flows
-   by returning some tokens from the Authorization Endpoint and others
-   from the Token Endpoint.
+   described in Section 3.2 of the OpenID Connect Core protocol.  At the
+   time of this writing, the Implicit Flow is considered insecure and
+   efforts are being made to deprecate the flow.  The Hybrid Flow
+   (described in Section 3.3 of the OpenID Connect Core protocol)
+   combines elements of the Authorization Code and Implicit Flows by
+   returning some tokens from the Authorization Endpoint and others from
+   the Token Endpoint.
 
    An Authentication Request can contain several parameters.  REQUIRED
    parameters are specified in Section 3.1.2.1 of the OpenID Connect
@@ -604,20 +632,23 @@ Table of Contents
    the registry contains the following fields:
 
    Value: the purpose string value being registered.  Value strings can
-   contain upper case characters from "A" to "Z", lower case ASCII
+   contain upper case ASCII characters from "A" to "Z", lower case ASCII
    characters from "a" to "z", and the underscore ("_") character.
    Value strings contain at least one character and no more than 64
    characters.
 
-   Description: a one- or two-sentence description of the meaning of the
-   purpose value, how it might be used, and/or how it should be
-   interpreted by clients and servers.
+   Description: a one- or two-sentence, English language description of
+   the meaning of the purpose value, how it might be used, and/or how it
+   should be interpreted by clients and servers.
 
    This registry is operated under the "Specification Required" policy
-   defined in RFC 8126 ([RFC8126]).  The set of initial values used to
-   populate the registry as described in Section 9.3 are taken from the
-   final report (https://www.icann.org/en/system/files/files/final-
-   report-06jun14-en.pdf) produced by the Expert Working Group on gTLD
+   defined in RFC 8126 ([RFC8126]).  The Designated Expert must ensure
+   that requests to add values to this registry meet the syntax, value,
+   and description requirements described in this section.  The set of
+   initial values used to populate the registry as described in
+   Section 9.3 are taken from the final report
+   (https://www.icann.org/en/system/files/files/final-report-
+   06jun14-en.pdf) produced by the Expert Working Group on gTLD
    Directory Services chartered by the Internet Corporation for Assigned
    Names and Numbers (ICANN).
 
@@ -668,26 +699,32 @@ Table of Contents
    The "farv1_openidcConfiguration" data structure is an object with the
    following members:
 
-   1.  "dntSupported": (MANDATORY) a boolean value that describes RDAP
+   1.  "sessionClientSupported": (REQUIRED) a boolean value that
+       describes RDAP server support for session-oriented clients (see
+       Section 3.1.2).
+   2.  "tokenClientSupported": (REQUIRED) a boolean value that describes
+       RDAP server support for token-oriented clients (see
+       Section 3.1.2).
+   3.  "dntSupported": (REQUIRED) a boolean value that describes RDAP
        server support for the "farv1_dnt" query parameter (see
        Section 4.2.2).
-   2.  "providerDiscoverySupported": (OPTIONAL) a boolean value that
+   4.  "providerDiscoverySupported": (OPTIONAL) a boolean value that
        describes RDAP server support for discovery of providers of End-
        User identifiers.  The default value is "true".
-   3.  "issuerIdentifierSupported": (OPTIONAL) a boolean value that
+   5.  "issuerIdentifierSupported": (OPTIONAL) a boolean value that
        describes RDAP server support for explicit client specification
        of an Issuer Identifier.  The default value is "true".
-   4.  "implicitTokenRefreshSupported": (OPTIONAL) a boolean value that
+   6.  "implicitTokenRefreshSupported": (OPTIONAL) a boolean value that
        describes RDAP server support for implicit token refresh.  The
        default value is "false".
-   5.  "openidcProviders": (OPTIONAL) a list of objects with the
+   7.  "openidcProviders": (OPTIONAL) a list of objects with the
        following members that describes the set of OPs that are
        supported by the RDAP server.  This data is RECOMMENDED if the
        value of issuerIdentifierSupported is "true":
-       a.  "iss": (MANDATORY) a URI value that represents the Issuer
+       a.  "iss": (REQUIRED) a URI value that represents the Issuer
            Identifier of the OP as per the OpenID Connect Core
            specification [OIDCC]
-       b.  "name": (MANDATORY) a string value representing the human-
+       b.  "name": (REQUIRED) a string value representing the human-
            friendly name of the OP.
        c.  "default": (OPTIONAL) a boolean value that describes RDAP
            server support for an OPTIONAL default OP that will be used
@@ -699,14 +736,30 @@ Table of Contents
            where each member represents an OAuth authorization request
            parameter name-value pair supported by the OP.  The name
            represents an OAuth query parameter and the value is the
-           query parameter value.  A token-oriented RDAP client MAY add
-           these query parameters and their corresponding values to the
-           Authentication Request URL when requesting authorization by a
-           specified OP through a proxy OP.
+           query parameter value.  A token-oriented RDAP client SHOULD
+           add these query parameters and their corresponding values to
+           the Authentication Request URL when requesting authorization
+           by a specified OP through a proxy OP.
+
+   An RDAP server MUST set either the "sessionClientSupported" or
+   "tokenClientSupported" value to "true".  Both values MAY be set to
+   "true" if an RDAP server supports both types of client.
+
+   The "providerDiscoverySupported" value has a direct impact on the use
+   of the "farv1_id" query parameter described in Section 3.1.4.2 and
+   Section 5.2.1.  The value of "providerDiscoverySupported" MUST be
+   "true" for an RDAP server to properly accept and process "farv1_id"
+   query parameters.  Similarly, The "issuerIdentifierSupported" value
+   has a direct impact on the use of the "farv1_iss" query parameter
+   described in Section 5.2.2.  The value of "issuerIdentifierSupported"
+   MUST be "true" for an RDAP server to properly accept and process
+   "farv1_iss" query parameters.
 
    An example of a "farv1_openidcConfiguration" data structure:
 
    "farv1_openidcConfiguration": {
+     "sessionClientSupported": true,
+     "tokenClientSupported": true,
      "dntSupported": false,
      "providerDiscoverySupported": true,
      "issuerIdentifierSupported": true,
@@ -850,6 +903,10 @@ Table of Contents
            supports refresh tokens.  As described in RFC 6749 [RFC6749],
            support for refresh tokens is OPTIONAL.
 
+   Note that all of the members of the "farv1_session" data structure
+   are OPTIONAL.  See Section 5.2.3 for instructions describing when to
+   return the minimum set of members.
+
    An example of a "farv1_session" data structure:
 
      "farv1_session": {
@@ -889,8 +946,8 @@ Table of Contents
    device.  The information that needs to be entered using the web
    browser is contained in the "farv1_deviceInfo" data structure.
 
-   The "farv1_deviceInfo" data structure is an object that contains
-   three members:
+   The "farv1_deviceInfo" data structure is an object that contains four
+   members:
 
    1.  "verification_url": a URL that the End-User needs to visit using
        a web browser on a second device,
@@ -1279,13 +1336,13 @@ Table of Contents
 
    Clients MAY send a request to an RDAP server to refresh, or extend,
    an existing login session using a "farv1_session/refresh" path
-   segment.  The RDAP server MAY attempt to refresh the access token
+   segment.  The RDAP server MAY attempt to refresh the Access Token
    associated with the current session as part of extending the session
    for a period of time determined by the RDAP server.  As described in
    RFC 6749 [RFC6749], OP support for refresh tokens is OPTIONAL.  An
    RDAP server MUST determine if the OP supports token refresh and
    process the refresh request by either requesting refresh of the
-   access token or by returning a response that indicates that token
+   Access Token or by returning a response that indicates that token
    refresh is not supported by the OP in the "notices" data structure.
    An example "farv1_session/refresh" request:
 
@@ -1347,8 +1404,8 @@ Table of Contents
 
                                  Figure 15
 
-   Alternatively, an RDAP server MAY attempt to refresh an access token
-   upon receipt of a query if the access token associated with an
+   Alternatively, an RDAP server MAY attempt to refresh an Access Token
+   upon receipt of a query if the Access Token associated with an
    existing session has expired and the corresponding OP supports token
    refresh.  The default RDAP server behavior is described in the
    "implicitTokenRefreshSupported" value that's included in the
@@ -1359,7 +1416,7 @@ Table of Contents
    "farv1_session/refresh" query, or it MAY depend on the RDAP server to
    attempt to refresh the session as necessary when an RDAP query is
    received by the server.  In this case, a server MUST attempt to
-   refresh the access token upon receipt of a query if the access token
+   refresh the Access Token upon receipt of a query if the Access Token
    associated with an existing session has expired and the corresponding
    OP supports token refresh.  Servers MUST return an HTTP 401
    (Unauthorized) response to a query if an attempt to implicitly
@@ -1372,7 +1429,7 @@ Table of Contents
    a new session to continue authenticated query processing by
    submitting a "farv1_session/login" query.  If the OP does not support
    token refresh, the client MUST submit a new "farv1_session/login"
-   request to establish a new session once an access token has expired.
+   request to establish a new session once an Access Token has expired.
 
    Clients SHOULD NOT send a "farv1_session/refresh" request in the
    absence of an active login session because the request conflicts with
@@ -1392,9 +1449,9 @@ Table of Contents
    associated with a future RDAP session.  Alternatively, an RDAP server
    MAY attempt to logout from the OP using the "OpenID Connect RP-
    Initiated Logout" protocol ([OIDCL]) if that protocol is supported by
-   the OP.  In any case, an RDAP server SHOULD invalidate the HTTP
-   cookie associated with the session as part of terminating the
-   session.
+   the OP.  In any case, to prevent abuse before the cookie times out an
+   RDAP server SHOULD invalidate the HTTP cookie associated with the
+   session as part of terminating the session.
 
    An example "farv1_session/logout" request:
 
@@ -1448,6 +1505,18 @@ Table of Contents
    refresh", or "farv1_session/logout" request in the absence of a
    session cookie, the server MUST return an HTTP 409 (Conflict) error.
 
+   A client can end a session explicitly by sending a "farv1_session/
+   logout" request to the RDAP server.  A session can also be ended
+   implicitly by the server after a server-defined period of time.  The
+   status of a session can be determined at any time by sending a
+   "farv1_session/status" query to the RDAP server.
+
+   An RDAP server MUST maintain session state information for the
+   duration of an active session.  This is commonly done using HTTP
+   cookies as described in RFC 6265 [RFC6265].  Doing so allows End-User
+   to submit queries without having to explicitly identify and
+   authenticate themselves for every query.
+
    An RDAP server can receive queries that include a session cookie
    where the associated session has expired or is otherwise unavailable
    (e.g. due to the user requesting explicit logout for the associated
@@ -1465,15 +1534,15 @@ Table of Contents
 
    Clients identify and authenticate End-Users by exchanging information
    with an OP that is recognized by the RDAP server as described in
-   Section 3.1.4.2, Section 3.1.4.3, and Section 3.1.4.4.  A client that
-   wishes to trigger authorization with a specified OP through a proxy
-   OP MAY do so using the "additionalAuthorizationQueryParams" values
-   retrieved from the "openidcProviders" array described in Section 4.1.
-   Once these processes are completed successfully, the client can
-   request tokens from the OP as described in Section 3.1.4.5.  The OP
-   SHOULD include the RDAP server's client_id in the "aud" claim value
-   of an issued ID token.  The RDAP server MAY choose to ignore the
-   value of the "aud" claim or exchange the token as described in
+   Section 3.1.4.2, Section 3.1.4.3, and Section 3.1.4.4.  A client
+   SHOULD append the "additionalAuthorizationQueryParams" values
+   retrieved from the "openidcProviders" array described in Section 4.1
+   to the Authorization Endpoint URL when requesting authorization from
+   the OP.  Once these processes are completed successfully, the client
+   can request tokens from the OP as described in Section 3.1.4.5.  The
+   OP SHOULD include the RDAP server's client_id in the "aud" claim
+   value of an issued ID token.  The RDAP server MAY choose to ignore
+   the value of the "aud" claim or exchange the token as described in
    Section 6.4.  With these steps completed, the Access Token received
    from the OP can be passed to an RDAP server in an HTTP
    "Authorization" request header [RFC6750] for RDAP queries that
@@ -1533,18 +1602,7 @@ Table of Contents
    during the duration of the session.  This MAY include rejecting
    queries outright, and it MAY include omitting or otherwise redacting
    information that the End-User is not authorized to receive.  Specific
-   processing requirements are beyond the scope of this document.  A
-   client can end a session explicitly by sending a "farv1_session/
-   logout" request to the RDAP server.  A session can also be ended
-   implicitly by the server after a server-defined period of time.  The
-   status of a session can be determined at any time by sending a
-   "farv1_session/status" query to the RDAP server.
-
-   An RDAP server MUST maintain session state information for the
-   duration of an active session.  This is commonly done using HTTP
-   cookies as described in RFC 6265 [RFC6265].  Doing so allows End-User
-   to submit queries without having to explicitly identify and
-   authenticate themselves for every query.
+   processing requirements are beyond the scope of this document.
 
 8.  RDAP Conformance
 
@@ -1575,7 +1633,7 @@ Table of Contents
       Extension identifier: farv1
       Registry operator: Any
       Published specification: This document.
-      Contact: IESG <iesg@ietf.org>
+      Contact: IETF <iesg@ietf.org>
       Intended usage: This extension describes version 1 of a federated
       authentication method for RDAP using OAuth 2.0 and OpenID Connect.
 
@@ -1588,15 +1646,16 @@ Table of Contents
       Claim Description: This claim describes the set of RDAP query
       purposes that are available to an identity that is presented for
       access to a protected RDAP resource.
-      Change Controller: IESG
+      Change Controller: IETF
       Specification Document(s): Section 3.1.5.1 of this document.
+
 
       Claim Name: "rdap_dnt_allowed"
       Claim Description: This claim contains a JSON boolean literal that
       describes a "do not track" request for server-side tracking,
       logging, or recording of an identity that is presented for access
       to a protected RDAP resource.
-      Change Controller: IESG
+      Change Controller: IETF
       Specification Document(s): Section 3.1.5.2 of this document.
 
 9.3.  RDAP Query Purpose Registry
@@ -1605,8 +1664,9 @@ Table of Contents
    query purpose values.  This registry should be named "Registration
    Data Access Protocol (RDAP) Query Purpose Values" and should appear
    under the "Registration Data Access Protocol (RDAP)" section of
-   IANA's protocol registries.  The information to be registered and the
-   procedures to be followed in populating the registry are described in
+   IANA's protocol registries.  The information to be registered, the
+   procedures to be followed in populating the registry, and the review
+   instructions for the Designated Expert are described in
    Section 3.1.5.1.
 
    Section at http://www.iana.org/protocols: Registration Data Access
@@ -1859,6 +1919,10 @@ Table of Contents
    8996 [RFC8996] MUST be followed when the Transport Layer Security
    (TLS) protocol is used.
 
+   As described in Section 3.1.4.2, the OAuth 2.0 Implicit Flow
+   [RFC6749] is considered insecure and efforts are being made to
+   deprecate the flow.  It SHOULD NOT be used.
+
    Some of the responses described in this specification return
    information to a client from an RDAP server that is intended to help
    the client match responses to queries and manage sessions.  Some of
@@ -1884,14 +1948,14 @@ Table of Contents
 12.  Acknowledgments
 
    The author would like to acknowledge the following individuals for
-   their contributions to the development of this document: Marc
-   Blanchet, Tom Harrison, Russ Housley, Jasdip Singh, Rhys Smith,
-   Jaromir Talir, Rick Wilhelm, and Alessandro Vesely.  In addition, the
-   Verisign Registry Services Lab development team of Joseph Harvey,
-   Andrew Kaizer, Sai Mogali, Anurag Saxena, Swapneel Sheth, Nitin
-   Singh, and Zhao Zhao provided critical "proof of concept"
-   implementation experience that helped demonstrate the validity of the
-   concepts described in this document.
+   their contributions to the development of this document: Julien
+   Bernard, Marc Blanchet, Tom Harrison, Russ Housley, Jasdip Singh,
+   Rhys Smith, Jaromir Talir, Rick Wilhelm, and Alessandro Vesely.  In
+   addition, the Verisign Registry Services Lab development team of
+   Joseph Harvey, Andrew Kaizer, Sai Mogali, Anurag Saxena, Swapneel
+   Sheth, Nitin Singh, and Zhao Zhao provided critical "proof of
+   concept" implementation experience that helped demonstrate the
+   validity of the concepts described in this document.
 
    Pawel Kowalik and Mario Loffredo provided significant text
    contributions that led to welcome improvements in several sections of
@@ -1948,11 +2012,6 @@ Table of Contents
    [RFC7009]  Lodderstedt, T., Ed., Dronia, S., and M. Scurtescu, "OAuth
               2.0 Token Revocation", RFC 7009, DOI 10.17487/RFC7009,
               August 2013, <https://www.rfc-editor.org/info/rfc7009>.
-
-   [RFC7231]  Fielding, R., Ed. and J. Reschke, Ed., "Hypertext Transfer
-              Protocol (HTTP/1.1): Semantics and Content", RFC 7231,
-              DOI 10.17487/RFC7231, June 2014,
-              <https://www.rfc-editor.org/info/rfc7231>.
 
    [RFC7480]  Newton, A., Ellacott, B., and N. Kong, "HTTP Usage in the
               Registration Data Access Protocol (RDAP)", STD 95,
@@ -2019,12 +2078,6 @@ Table of Contents
               <https://www.rfc-editor.org/info/rfc9110>.
 
 13.2.  Informative References
-
-   [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
-              Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
-              Transfer Protocol -- HTTP/1.1", RFC 2616,
-              DOI 10.17487/RFC2616, June 1999,
-              <https://www.rfc-editor.org/info/rfc2616>.
 
    [RFC4949]  Shirey, R., "Internet Security Glossary, Version 2",
               FYI 36, RFC 4949, DOI 10.17487/RFC4949, August 2007,
@@ -2105,6 +2158,20 @@ Appendix A.  Change Log
       oriented and token-oriented clients.  Added reference to RFC 9068.
    20  Updated text to describe support for session-oriented and token-
       oriented clients.
+   21  Changed "Servers MUST support both types of client" to "SHOULD".
+      Added "sessionClientSupported" and "tokenClientSupported" as a
+      consequence.  Noted that the OIDCC Implicit Flow is being
+      deprecated due to security concerns.  Added additional text to
+      describe the relationship between "providerDiscoverySupported" and
+      "farv1_id", and "issuerIdentifierSupported" and "farv1_iss".
+      Restructured Section 5.6 and Section 7.  Replaced the reference to
+      RFC 2616 (obsolete) with RFC 9110.  Replaced the reference to RFC
+      7231 (obsolete) with RFC 9110.
+   22  Changed MANDATORY to REQUIRED for BCP 14 alignment.  Updated
+      Section 3.1.2, Section 11, and Section 12.
+   23  Changed "IESG" to "IETF" in Section 9 at IANA's request.
+   24  AD evaluation edits.
+   24  IETF last call edits.
 
 Author's Address
 
